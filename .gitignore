@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+
+# CMake build folders
+/build/
+/out/
+/dist/
+/Testing/
+/cmake-build-*/
+
+# Build artifacts
+build*/
+CMakeCache.txt
+cmake_install.cmake
+CMakeUserPresets.json
+Makefile
+Makefile.local
+compile_commands.json
+
+# Caches
+.cache/
+.ccache/
+.cores/
+
+# IDE settings
+.idea/
+.vscode/
+*.code-workspace
+
+# Keep useful VSCode configs
+!.vscode/c_cpp_properties.json
+!.vscode/cmake-variants.yaml
+!.vscode/README.md
+
+# Logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
