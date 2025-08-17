@@ -2,10 +2,10 @@
 #include <memory>
 
 #include "persistence/aof_logger.hpp"
-#include "storage/shard.hpp"
+#include "storage/partition.hpp"
 
 class Storage {
-    std::vector<std::unique_ptr<Shard>> shards_;
+    std::vector<std::unique_ptr<Partition>> shards_;
     size_t num_shards_;
     AOFLogger aof_logger_;  // отдельный поток для записи AOF
 public:
@@ -15,5 +15,5 @@ public:
     void Del(const std::string& key);
     void Snapshot();
 private:
-    Shard& SelectShard(const std::string& key);
+    Partition& SelectPartition(const std::string& key);
 };
