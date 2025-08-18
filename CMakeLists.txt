@@ -24,6 +24,10 @@ add_library(
     ${PROJECT_NAME}_objs OBJECT
     src/greeting.cpp #
     src/hello.cpp #
+    src/storage/storage.cpp #
+    src/storage/partition.cpp #
+    src/persistence/aof_logger.cpp #
+    src/persistence/snapshot.cpp #
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs
@@ -32,7 +36,8 @@ target_link_libraries(
 
 
 # The Service
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp
+)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
 
 # Unit Tests

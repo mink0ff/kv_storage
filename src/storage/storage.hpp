@@ -1,19 +1,25 @@
+#pragma once
+#include "partition.hpp"
 #include <vector>
+#include <string>
+#include <optional>
 #include <memory>
 
-#include "persistence/aof_logger.hpp"
-#include "storage/partition.hpp"
-
 class Storage {
-    std::vector<std::unique_ptr<Partition>> shards_;
-    size_t num_shards_;
-    AOFLogger aof_logger_;  // отдельный поток для записи AOF
 public:
-    Storage(size_t num_shards);
-    std::optional<std::string> Get(const std::string& key);
-    void Set(const std::string& key, const std::string& value);
-    void Del(const std::string& key);
-    void Snapshot();
+    explicit Storage(size_t num_partitions);
+
+    // API
+    std::optional<std::string> Get(const std::string& key) const;
+    bool Set(const std::string& key, const std::string& value);
+    bool Del(const std::string& key);
+
+    // Сохранение снапшота
+    void Snapshot(const std::string& dir) const;
+
 private:
-    Partition& SelectPartition(const std::string& key);
+    size_t NumPartitions() const;
+    size_t GetPartitionIndex(const std::string& key) const;
+
+    std::vector<std::unique_ptr<Partition>> partitions_;
 };
