@@ -1,12 +1,22 @@
-#include <mutex>
+#pragma once
 #include <fstream>
+#include <mutex>
+#include <string>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
-
-
-class AOFLogger {
-    std::mutex file_mutex_;
-    std::ofstream out_;
+class AofLogger {
 public:
-    AOFLogger(const std::string& filename);
-    void Append(const std::string& cmd);
+    explicit AofLogger(const std::string& filename);
+    ~AofLogger();
+
+    void Append(const std::string& command); 
+    void Flush();
+    std::string GetTimestamp();
+
+
+private:
+    std::ofstream file_;
+    std::mutex mtx_;
 };

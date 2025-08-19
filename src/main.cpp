@@ -42,12 +42,14 @@
 #include "storage/storage.hpp"
 
 int main() {
-    const int partitions = 16;
-    const int num_threads = 100;
+    const int partitions = 8;
+    const int num_threads = 10;
     const int ops_per_thread = 1000;
     const int num_keys = 10000;
 
-    auto storage = std::make_shared<Storage>(partitions);
+    const std::string aof_path = "logs/appendonly.aof";
+
+    auto storage = std::make_shared<Storage>(partitions, aof_path);
 
     std::vector<std::string> keys;
     keys.reserve(num_keys);
