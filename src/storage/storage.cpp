@@ -53,3 +53,7 @@ void Storage::Snapshot(const std::string& dir) const {
     }
     std::cout << "Snapshot saved to " << dir << std::endl;
 }
+
+AofLogger& Storage::GetAofLogger() {
+    return aof_logger_;
+}

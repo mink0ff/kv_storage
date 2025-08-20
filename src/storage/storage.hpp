@@ -18,6 +18,8 @@ public:
     // Сохранение снапшота
     void Snapshot(const std::string& dir) const;
 
+    AofLogger& GetAofLogger();
+
 private:
     size_t NumPartitions() const;
     size_t GetPartitionIndex(const std::string& key) const;

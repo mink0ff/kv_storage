@@ -42,14 +42,16 @@
 #include "storage/storage.hpp"
 
 int main() {
-    const int partitions = 8;
-    const int num_threads = 10;
-    const int ops_per_thread = 1000;
-    const int num_keys = 10000;
+    const int partitions = 16;
+    const int num_threads = 100;
+    const int ops_per_thread = 100;
+    const int num_keys = 5000;
 
     const std::string aof_path = "logs/appendonly.aof";
 
     auto storage = std::make_shared<Storage>(partitions, aof_path);
+
+    storage->GetAofLogger().Clear(); // Очистка AOF файла перед началом теста
 
     std::vector<std::string> keys;
     keys.reserve(num_keys);
@@ -68,43 +70,53 @@ int main() {
     };
 
     auto worker = [&](int thread_id) {
-        try {
-            std::mt19937 rng(static_cast<unsigned>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) ^ (thread_id * 1337));
-            std::uniform_int_distribution<int> key_dist(0, num_keys - 1);
-            std::uniform_int_distribution<int> op_dist(0, 2); // 0=Set,1=Get,2=Del
+    try {
+        std::mt19937 rng(static_cast<unsigned>(
+            std::chrono::high_resolution_clock::now().time_since_epoch().count()
+        ) ^ (thread_id * 1337));
 
-            for (int i = 0; i < ops_per_thread && !stop_flag.load(); ++i) {
-                const std::string &key = keys[key_dist(rng)];
-                int op = op_dist(rng);
+        std::uniform_int_distribution<int> key_dist(0, num_keys - 1);
+        std::uniform_int_distribution<int> op_dist(0, 2); // 0=Set,1=Get,2=Del
 
-                try {
-                    if (op == 0) {
-                        storage->Set(key, "value_" + std::to_string(thread_id) + "_" + std::to_string(i));
-                        total_sets.fetch_add(1, std::memory_order_relaxed);
-                    } else if (op == 1) {
-                        auto v = storage->Get(key);
-                        total_gets.fetch_add(1, std::memory_order_relaxed);
-                    } else {
-                        storage->Del(key);;
+        std::unordered_set<std::string> local_alive; // хранит ключи, которые реально установлены этим потоком
+
+        for (int i = 0; i < ops_per_thread && !stop_flag.load(); ++i) {
+            int op = op_dist(rng);
+
+            if (op == 0) {
+                // SET
+                const std::string key = keys[key_dist(rng)];
+                bool added = storage->Set(key, "value_" + std::to_string(thread_id) + "_" + std::to_string(i));
+                local_alive.insert(key);
+                if (added) {
+                    total_sets.fetch_add(1, std::memory_order_relaxed);
+                }
+
+            } else if (op == 1) {
+                // DEL — только если есть доступные ключи
+                if (!local_alive.empty()) {
+                    auto it = local_alive.begin();
+                    std::advance(it, rng() % local_alive.size());
+                    const std::string key = *it;
+
+                    if (bool removed = storage->Del(key); removed) {
                         total_dels.fetch_add(1, std::memory_order_relaxed);
-                    } 
-                } catch (const std::exception &e) {
-
-                    op_exceptions.fetch_add(1, std::memory_order_relaxed);
-                    std::ostringstream oss;
-                    oss << "[thread " << thread_id << "] exception during op on key=\"" << key << "\": " << e.what();
-                    safe_log(oss.str());
-                } catch (...) {
-                    op_exceptions.fetch_add(1, std::memory_order_relaxed);
-                    std::ostringstream oss;
-                    oss << "[thread " << thread_id << "] unknown exception during op on key=\"" << key << "\"";
-                    safe_log(oss.str());
+                    }
+                    local_alive.erase(it);
                 }
 
-                if ((i & 0xFF) == 0) {
-                    std::this_thread::sleep_for(std::chrono::microseconds(10));
-                }
+            } else {
+                // GET — по случайному ключу
+                const std::string key = keys[key_dist(rng)];
+                auto v = storage->Get(key);
+                (void)v;
+                total_gets.fetch_add(1, std::memory_order_relaxed);
             }
+
+            if ((i & 0xFF) == 0) {
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+        }
         } catch (const std::exception &e) {
             std::ostringstream oss;
             oss << "[thread " << thread_id << "] fatal exception: " << e.what();
@@ -156,6 +168,7 @@ int main() {
     std::cout << "Sets: " << total_sets.load() << ", Gets: " << total_gets.load() << ", Dels: " << total_dels.load() << "\n";
     std::cout << "Exceptions caught: " << op_exceptions.load() << "\n";
     std::cout << "Remaining keys: " << remaining << " out of " << num_keys << "\n";
+    std::cout << "Total modify operations: " << total_sets.load() + total_dels.load() << "\n";
 
     return 0;
 }

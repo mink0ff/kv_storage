@@ -15,8 +15,11 @@ public:
     void Flush();
     std::string GetTimestamp();
 
+    void Clear();
+
 
 private:
     std::ofstream file_;
     std::mutex mtx_;
+    std::string filename_;
 };

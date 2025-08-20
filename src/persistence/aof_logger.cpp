@@ -1,6 +1,7 @@
 #include "aof_logger.hpp"
 
-AofLogger::AofLogger(const std::string& filename) {
+AofLogger::AofLogger(const std::string& filename): 
+filename_(filename) {
     file_.open(filename, std::ios::app);
     if (!file_.is_open()) {
         throw std::runtime_error("Failed to open AOF file: " + filename);
@@ -35,4 +36,26 @@ std::string AofLogger::GetTimestamp() {
     std::stringstream ss;
     ss << std::put_time(std::gmtime(&t), "%Y-%m-%dT%H:%M:%SZ");
     return ss.str();
+}
+
+void AofLogger::Clear() {
+    std::lock_guard<std::mutex> lg(mtx_);
+
+    // Закрываем текущий поток
+    if (file_.is_open()) {
+        file_.close();
+    }
+
+    // Перезаписываем файл (truncate)
+    file_.open(filename_, std::ios::trunc);
+    if (!file_.is_open()) {
+        throw std::runtime_error("Failed to truncate AOF file: " + filename_);
+    }
+
+    // Закрыть и открыть заново в режиме append
+    file_.close();
+    file_.open(filename_, std::ios::app);
+    if (!file_.is_open()) {
+        throw std::runtime_error("Failed to reopen AOF file: " + filename_);
+    }
 }
