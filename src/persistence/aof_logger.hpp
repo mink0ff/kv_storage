@@ -2,9 +2,20 @@
 #include <fstream>
 #include <mutex>
 #include <string>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
+#include <vector>
+
+#include "utils/utils.hpp"
+
+
+enum class AofOpType { SET, DEL };
+
+struct AofOp {
+    std::chrono::system_clock::time_point ts;
+    std::size_t partition_id{};
+    AofOpType type{};
+    std::string key;
+    std::string value;
+};
 
 class AofLogger {
 public:
@@ -13,9 +24,11 @@ public:
 
     void Append(const std::string& command); 
     void Flush();
-    std::string GetTimestamp();
 
     void Clear();
+
+    std::vector<AofOp> ReadAll() const;
+    std::vector<AofOp> ReadFile(const std::string& path) const;
 
 
 private:

@@ -27,35 +27,63 @@ void AofLogger::Flush() {
     file_.flush();
 }
 
-
-std::string AofLogger::GetTimestamp() {
-    using clock = std::chrono::system_clock;
-    auto now = clock::now();
-    auto t = clock::to_time_t(now);
-
-    std::stringstream ss;
-    ss << std::put_time(std::gmtime(&t), "%Y-%m-%dT%H:%M:%SZ");
-    return ss.str();
-}
-
 void AofLogger::Clear() {
     std::lock_guard<std::mutex> lg(mtx_);
 
-    // Закрываем текущий поток
     if (file_.is_open()) {
         file_.close();
     }
 
-    // Перезаписываем файл (truncate)
     file_.open(filename_, std::ios::trunc);
     if (!file_.is_open()) {
         throw std::runtime_error("Failed to truncate AOF file: " + filename_);
     }
 
-    // Закрыть и открыть заново в режиме append
     file_.close();
     file_.open(filename_, std::ios::app);
     if (!file_.is_open()) {
         throw std::runtime_error("Failed to reopen AOF file: " + filename_);
     }
+}
+
+std::vector<AofOp> AofLogger::ReadAll() const {
+    return ReadFile(filename_);
+}
+
+std::vector<AofOp> AofLogger::ReadFile(const std::string& path) const {
+    std::vector<AofOp> ops;
+    std::ifstream in(path);
+    if (!in.is_open()) return ops;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        std::istringstream iss(line);
+
+        std::string ts_str, op_str;
+        std::size_t pid;
+        if (!(iss >> ts_str >> pid >> op_str)) continue;
+
+        AofOp op;
+        op.ts = ParseTimestampIso8601Z(ts_str);
+        op.partition_id = pid;
+
+        if (op_str == "SET") {
+            std::string key, value;
+            if (!(iss >> key >> value)) continue;
+            op.type = AofOpType::SET;
+            op.key = std::move(key);
+            op.value = std::move(value);
+        } else if (op_str == "DEL") {
+            std::string key;
+            if (!(iss >> key)) continue;
+            op.type = AofOpType::DEL;
+            op.key = std::move(key);
+        } else {
+            continue;
+        }
+        ops.emplace_back(std::move(op));
+    }
+
+    return ops;
 }

@@ -44,14 +44,15 @@
 int main() {
     const int partitions = 16;
     const int num_threads = 100;
-    const int ops_per_thread = 100;
+    const int ops_per_thread = 1000;
     const int num_keys = 5000;
 
     const std::string aof_path = "logs/appendonly.aof";
+    const std::string snapshot_dir = "snapshots";
 
-    auto storage = std::make_shared<Storage>(partitions, aof_path);
+    auto storage = std::make_shared<Storage>(partitions, aof_path, snapshot_dir);
 
-    storage->GetAofLogger().Clear(); // Очистка AOF файла перед началом теста
+    storage->GetAofLogger().Clear();
 
     std::vector<std::string> keys;
     keys.reserve(num_keys);
@@ -78,7 +79,7 @@ int main() {
         std::uniform_int_distribution<int> key_dist(0, num_keys - 1);
         std::uniform_int_distribution<int> op_dist(0, 2); // 0=Set,1=Get,2=Del
 
-        std::unordered_set<std::string> local_alive; // хранит ключи, которые реально установлены этим потоком
+        std::unordered_set<std::string> local_alive;
 
         for (int i = 0; i < ops_per_thread && !stop_flag.load(); ++i) {
             int op = op_dist(rng);
@@ -93,7 +94,7 @@ int main() {
                 }
 
             } else if (op == 1) {
-                // DEL — только если есть доступные ключи
+                // DEL 
                 if (!local_alive.empty()) {
                     auto it = local_alive.begin();
                     std::advance(it, rng() % local_alive.size());
@@ -106,7 +107,7 @@ int main() {
                 }
 
             } else {
-                // GET — по случайному ключу
+                // GET 
                 const std::string key = keys[key_dist(rng)];
                 auto v = storage->Get(key);
                 (void)v;
@@ -141,7 +142,7 @@ int main() {
     auto end = std::chrono::steady_clock::now();
 
     try {
-        storage->Snapshot("snapshots/stress_test_safe");
+        storage->Snapshot();
     } catch (const std::exception &e) {
         safe_log(std::string("Snapshot failed: ") + e.what());
     } catch (...) {
