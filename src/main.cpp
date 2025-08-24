@@ -48,11 +48,11 @@ int main() {
     const int num_keys = 5000;
 
     const std::string aof_path = "logs/appendonly.aof";
-    const std::string snapshot_dir = "snapshots";
+    const std::string snapshot_dir = "snapshots/after_aof_replay";
 
     auto storage = std::make_shared<Storage>(partitions, aof_path, snapshot_dir);
 
-    storage->GetAofLogger().Clear();
+    // storage->GetAofLogger().Clear();
 
     std::vector<std::string> keys;
     keys.reserve(num_keys);
@@ -87,7 +87,7 @@ int main() {
             if (op == 0) {
                 // SET
                 const std::string key = keys[key_dist(rng)];
-                bool added = storage->Set(key, "value_" + std::to_string(thread_id) + "_" + std::to_string(i));
+                bool added = storage->Set(key, "value_" + std::to_string(i));
                 local_alive.insert(key);
                 if (added) {
                     total_sets.fetch_add(1, std::memory_order_relaxed);

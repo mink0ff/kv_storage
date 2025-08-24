@@ -11,6 +11,13 @@ Storage::Storage(size_t num_partitions, const std::string& aof_path,
     for (size_t i = 0; i < num_partitions; i++) {
         partitions_.emplace_back(std::make_unique<Partition>());
     }
+
+    // При создании Storage сразу пытаемся восстановиться
+    try {
+        RecoverAdvanced(snapshot_dir_);
+    } catch (const std::exception& e) {
+        std::cerr << "RecoverAdvanced failed: " << e.what() << std::endl;
+    }
 }
 
 size_t Storage::NumPartitions() const {
@@ -75,7 +82,6 @@ void Storage::ReplayAof() {
 void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
     namespace fs = std::filesystem;
 
-    // Загружаем снапшоты всех партиций
     std::vector<std::chrono::system_clock::time_point> snapshot_times(partitions_.size());
 
     for (size_t i = 0; i < partitions_.size(); i++) {
@@ -106,11 +112,8 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
         partitions_[i]->Recover(filename);
     }
 
-    // Вычисляем min/max snapshot
-    auto min_it = std::min_element(snapshot_times.begin(), snapshot_times.end());
-    auto max_it = std::max_element(snapshot_times.begin(), snapshot_times.end());
-    auto min_snapshot_ts = *min_it;
-    auto max_snapshot_ts = *max_it;
+    auto min_snapshot_ts = *(std::min_element(snapshot_times.begin(), snapshot_times.end()));
+    auto max_snapshot_ts = *(std::max_element(snapshot_times.begin(), snapshot_times.end()));
 
     auto ops = aof_logger_.ReadAll();
 

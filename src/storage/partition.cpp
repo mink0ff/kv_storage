@@ -72,10 +72,15 @@ void Partition::Recover(const std::string& filename) {
     if (!std::getline(in, header)) {
         throw std::runtime_error("Snapshot file empty: " + filename);
     }
-
-    // Заголовок нам нужен только для времени и количества — можно игнорировать
+    std::istringstream header_ss(header);
+    std::string timestamp;
+    size_t count;
+    if (!(header_ss >> timestamp >> count)) {
+        throw std::runtime_error("Invalid snapshot header format in file: " + filename);
+    }
 
     kv_.clear();
+    kv_.reserve(count);
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;

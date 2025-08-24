@@ -23,6 +23,8 @@ class Partition {
 
     // Установить значение без логирования
     void SetNoLog(const std::string& key, const std::string& value);
+
+    // Удалить ключ без логирования
     void DelNoLog(const std::string& key);
 
     // Сохранить снапшот в файл
