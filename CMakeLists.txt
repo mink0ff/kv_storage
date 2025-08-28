@@ -29,6 +29,9 @@ add_library(
     src/persistence/aof_logger.cpp #
     src/persistence/snapshot.cpp #
     src/utils/utils.cpp #
+    src/server/components/storage_component.cpp #
+    src/server/handlers/get.cpp #
+    src/storage/partition_manager.cpp #
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs

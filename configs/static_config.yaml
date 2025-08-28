@@ -9,7 +9,11 @@ components_manager:
 
     default_task_processor: main-task-processor
 
-    components:                       # Configuring components that were registered via component_list
+    components:    
+        storage:
+            partitions: 16
+            aof-path: ../logs/appendonly.aof
+            snapshot-dir: ../snapshots/test_snapshots                   # Configuring components that were registered via component_list
         server:
             listener:                 # configuring the main listening socket...
                 port: $server-port            # ...to listen on this port and...
@@ -22,7 +26,6 @@ components_manager:
                     file_path: '@stderr'
                     level: $logger-level
                     overflow_behavior: discard  # Drop logs if the system is too busy to write them down.
-
         # Dynamic config options. Cache is disabled, updates are disabled.
         dynamic-config:
             # For most of userver dynamic configs, defaults are used, some are overridden here.
@@ -58,3 +61,8 @@ components_manager:
             path: /hello                  # Registering handler by URL '/hello'.
             method: GET,POST              # It will only reply to GET (HEAD) and POST requests.
             task_processor: main-task-processor  # Run it on CPU bound task processor
+
+        handler-get:
+            path: /kv/get
+            method: GET
+            task_processor: main-task-processor

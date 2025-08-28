@@ -2,17 +2,14 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <sstream>
+#include <algorithm>
 
-Storage::Storage(size_t num_partitions, const std::string& aof_path,
+Storage::Storage(int num_partitions, const std::string& aof_path,
                  const std::string& snapshot_dir)
     : aof_logger_(aof_path), 
-      snapshot_dir_(snapshot_dir) {
-    partitions_.reserve(num_partitions);
-    for (size_t i = 0; i < num_partitions; i++) {
-        partitions_.emplace_back(std::make_unique<Partition>());
-    }
-
-    // При создании Storage сразу пытаемся восстановиться
+      snapshot_dir_(snapshot_dir),
+      partitions_(num_partitions) {
     try {
         RecoverAdvanced(snapshot_dir_);
     } catch (const std::exception& e) {
@@ -21,7 +18,7 @@ Storage::Storage(size_t num_partitions, const std::string& aof_path,
 }
 
 size_t Storage::NumPartitions() const {
-    return partitions_.size();
+    return partitions_.Size();
 }
 
 size_t Storage::GetPartitionIndex(const std::string& key) const {
@@ -31,12 +28,12 @@ size_t Storage::GetPartitionIndex(const std::string& key) const {
 
 std::optional<std::string> Storage::Get(const std::string& key) const {
     auto idx = GetPartitionIndex(key);
-    return partitions_[idx]->Get(key);
+    return partitions_.Get(idx, key);
 }
 
 bool Storage::Set(const std::string& key, const std::string& value) {
     auto idx = GetPartitionIndex(key);
-    bool existed = partitions_[idx]->Set(key, value);
+    bool existed = partitions_.Set(idx, key, value);
     if (existed) {
         aof_logger_.Append(std::to_string(idx) + " SET " + key + " " + value);
     } 
@@ -45,7 +42,7 @@ bool Storage::Set(const std::string& key, const std::string& value) {
 
 bool Storage::Del(const std::string& key) {
     auto idx = GetPartitionIndex(key);
-    bool removed = partitions_[idx]->Del(key);
+    bool removed = partitions_.Del(idx, key);
     if (removed) {
         aof_logger_.Append(std::to_string(idx) + " DEL " + key);
     }
@@ -53,13 +50,7 @@ bool Storage::Del(const std::string& key) {
 }
 
 void Storage::Snapshot() const {
-    namespace fs = std::filesystem;
-    fs::create_directories(snapshot_dir_);
-
-    for (size_t i = 0; i < partitions_.size(); i++) {
-        std::string filename = snapshot_dir_ + "/partition_" + std::to_string(i) + ".snap";
-        partitions_[i]->Snapshot(filename);
-    }
+    partitions_.SnapshotAll(snapshot_dir_);
     std::cout << "Snapshot saved to " << snapshot_dir_ << std::endl;
 }
 
@@ -68,23 +59,26 @@ AofLogger& Storage::GetAofLogger() {
 }
 
 void Storage::SetNoLog(const size_t partition_idx, const std::string& key, const std::string& value) {
-    partitions_[partition_idx]->SetNoLog(key, value);
+    partitions_.SetNoLog(partition_idx, key, value);
 }
 
 void Storage::DelNoLog(const size_t partition_idx, const std::string& key) {
-    partitions_[partition_idx]->DelNoLog(key);
+    partitions_.DelNoLog(partition_idx, key);
 }
 
 void Storage::ReplayAof() {
-    
-};
+    auto ops = aof_logger_.ReadAll();
+    for (const auto& op : ops) {
+        partitions_.ApplyOp(op.partition_id, op);
+    }
+}
 
 void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
     namespace fs = std::filesystem;
 
-    std::vector<std::chrono::system_clock::time_point> snapshot_times(partitions_.size());
+    std::vector<std::chrono::system_clock::time_point> snapshot_times(NumPartitions());
 
-    for (size_t i = 0; i < partitions_.size(); i++) {
+    for (size_t i = 0; i < NumPartitions(); i++) {
         std::string filename = snapshots_dir + "/partition_" + std::to_string(i) + ".snap";
         if (!fs::exists(filename)) {
             throw std::runtime_error("Snapshot file not found: " + filename);
@@ -109,7 +103,8 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
 
         snapshot_times[i] = ParseTimestampIso8601Z(ts_str);
 
-        partitions_[i]->Recover(filename);
+        partitions_.ApplyOp(i, AofOp{}); // лишнее? но если Recover внутри PartitionManager, можно убрать
+        partitions_.RecoverAll(snapshots_dir); // заменяем прямой вызов
     }
 
     auto min_snapshot_ts = *(std::min_element(snapshot_times.begin(), snapshot_times.end()));
@@ -117,20 +112,16 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
 
     auto ops = aof_logger_.ReadAll();
 
-    // Делим операции на три диапазона:
-    // [< min_snapshot_ts]  -> пропускаем
-    // [min_snapshot_ts .. max_snapshot_ts] -> проверяем по времени партиции
-    // [> max_snapshot_ts] -> применяем без проверок
     for (const auto& op : ops) {
         if (op.ts < min_snapshot_ts) {
             continue; 
         }
         if (op.ts <= max_snapshot_ts) {
             if (op.ts > snapshot_times[op.partition_id]) {
-                partitions_[op.partition_id]->ApplyOp(op);
+                partitions_.ApplyOp(op.partition_id, op);
             }
         } else {
-            partitions_[op.partition_id]->ApplyOp(op);
+            partitions_.ApplyOp(op.partition_id, op);
         }
     }
 

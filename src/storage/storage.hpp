@@ -1,14 +1,14 @@
 #pragma once
-#include "partition.hpp"
-#include <vector>
+
 #include <string>
 #include <optional>
-#include <memory>
+
 #include "persistence/aof_logger.hpp"
+#include "partition_manager.hpp"
 
 class Storage {
 public:
-    explicit Storage(size_t num_partitions, const std::string& aof_path,
+    explicit Storage(int num_partitions, const std::string& aof_path,
                      const std::string& snapshot_dir);
 
     // API
@@ -34,5 +34,5 @@ private:
     AofLogger aof_logger_;
     std::string snapshot_dir_;
 
-    std::vector<std::unique_ptr<Partition>> partitions_;
+    PartitionManager partitions_; // отдельный потокозащищенный класс Partitions 
 };
