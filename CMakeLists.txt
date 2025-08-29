@@ -32,6 +32,8 @@ add_library(
     src/server/components/storage_component.cpp #
     src/server/handlers/get.cpp #
     src/storage/partition_manager.cpp #
+    src/server/handlers_make_response/handlers_make_response.cpp #
+    src/server/handlers/set.cpp #
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs

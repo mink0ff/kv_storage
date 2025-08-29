@@ -66,3 +66,8 @@ components_manager:
             path: /kv/get
             method: GET
             task_processor: main-task-processor
+
+        handler-set:
+            path: /kv/set
+            method: POST
+            task_processor: main-task-processor
