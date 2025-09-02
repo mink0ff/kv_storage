@@ -37,10 +37,10 @@ int main(int argc, char* argv[]) {
     return userver::utils::DaemonMain(argc, argv, component_list);
 }
 
-// добавить индексацию в операций AOF
-// добавить engine::mutex в Partition и Storage
-// разделить Storage и handlers на отдельные task processors
-// сделать ручки с json
+// добавить индексацию в операций AOF +
+// добавить engine::mutex в Partition и Storage +
+// разделить Storage и handlers на отдельные task processors +
+// сделать ручки с json +
 
 // #include <iostream>
 // #include <thread>

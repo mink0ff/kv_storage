@@ -11,6 +11,8 @@ public:
     explicit Storage(int num_partitions, const std::string& aof_path,
                      const std::string& snapshot_dir);
 
+    ~Storage();
+
     // API
     std::optional<std::string> Get(const std::string& key) const;
     bool Set(const std::string& key, const std::string& value);

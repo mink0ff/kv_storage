@@ -19,6 +19,14 @@ Storage::Storage(int num_partitions, const std::string& aof_path,
     }
 }
 
+Storage::~Storage() {
+    try {
+        Snapshot();
+    } catch (const std::exception& e) {
+        std::cerr << "Snapshot in destructor failed: " << e.what() << std::endl;
+    }
+}
+
 size_t Storage::NumPartitions() const {
     return partitions_.Size();
 }
