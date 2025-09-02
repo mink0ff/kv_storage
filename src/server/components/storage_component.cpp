@@ -24,6 +24,9 @@ type: object
 description: Storage component for KV store
 additionalProperties: false
 properties:
+    fs-task-processor:
+        type: string
+        description: Task processor for filesystem operations
     partitions:
         type: integer
         description: Number of partitions

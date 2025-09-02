@@ -68,7 +68,7 @@ void Partition::Snapshot(const std::string& filename) const {
 }
 
 void Partition::Recover(const std::string& filename) {
-    std::lock_guard<std::shared_mutex> lock(mutex_);
+    std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
 
     std::ifstream in(filename);
     if (!in.is_open()) {
@@ -102,7 +102,7 @@ void Partition::Recover(const std::string& filename) {
 }
 
 void Partition::ApplyOp(const AofOp& op) {
-    std::lock_guard<std::shared_mutex> lock(mutex_);
+    std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
 
     if (op.type == AofOpType::SET) {
         kv_[op.key] = op.value;

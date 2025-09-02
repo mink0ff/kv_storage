@@ -11,6 +11,7 @@ components_manager:
 
     components:    
         storage:
+            fs-task-processor: fs-task-processor
             partitions: 16
             aof-path: ../logs/appendonly.aof
             snapshot-dir: ../snapshots/test_snapshots                   # Configuring components that were registered via component_list

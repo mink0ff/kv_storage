@@ -1,14 +1,14 @@
 #pragma once
 #include <unordered_map>
 #include <string>
-#include <shared_mutex>
+#include <userver/engine/shared_mutex.hpp>
 #include <optional>
 
 #include "utils/utils.hpp"
 #include "persistence/aof_logger.hpp"
 
 class Partition {
-    mutable std::shared_mutex mutex_; 
+    mutable userver::engine::SharedMutex mutex_;
     std::unordered_map<std::string, std::string> kv_;
     uint64_t last_update_operation_idx_{0};
 

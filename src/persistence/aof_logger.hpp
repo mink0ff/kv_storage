@@ -1,6 +1,6 @@
 #pragma once
 #include <fstream>
-#include <mutex>
+#include <userver/engine/mutex.hpp>
 #include <string>
 #include <vector>
 
@@ -34,6 +34,6 @@ public:
 
 private:
     std::ofstream file_;
-    std::mutex mtx_;
+    userver::engine::Mutex mutex_;
     std::string filename_;
 };

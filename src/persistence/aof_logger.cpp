@@ -18,18 +18,18 @@ AofLogger::~AofLogger() {
 }
 
 void AofLogger::Append(const std::string& command) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<userver::engine::Mutex> lock(mutex_);
     file_ << GetTimestamp() + ' ' + command << "\n";
     file_.flush();  
 }
 
 void AofLogger::Flush() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<userver::engine::Mutex> lock(mutex_);
     file_.flush();
 }
 
 void AofLogger::Clear() {
-    std::lock_guard<std::mutex> lg(mtx_);
+    std::lock_guard<userver::engine::Mutex> lock(mutex_);
 
     if (file_.is_open()) {
         file_.close();
