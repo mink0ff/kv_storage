@@ -71,3 +71,7 @@ components_manager:
             path: /kv/set
             method: POST
             task_processor: main-task-processor
+        handler-del:
+            path: /kv/del
+            method: DELETE
+            task_processor: main-task-processor

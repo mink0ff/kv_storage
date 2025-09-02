@@ -11,6 +11,7 @@
 #include "server/components/storage_component.hpp"
 #include "server/handlers/get.hpp"
 #include "server/handlers/set.hpp"
+#include "server/handlers/del.hpp"
 
 
 #include <userver/utils/daemon_run.hpp>
@@ -30,6 +31,7 @@ int main(int argc, char* argv[]) {
                               .Append<myservice::components::StorageComponent>()
                               .Append<myservice::handlers::Get>()
                               .Append<myservice::handlers::Set>()
+                              .Append<myservice::handlers::Del>()
         ;
 
     return userver::utils::DaemonMain(argc, argv, component_list);

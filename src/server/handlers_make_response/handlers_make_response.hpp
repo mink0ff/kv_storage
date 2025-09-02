@@ -12,5 +12,5 @@ userver::formats::json::ValueBuilder MakeSetKeyResponse(
     const std::string& value);
 
 userver::formats::json::ValueBuilder MakeDelKeyResponse(
-    const Storage& storage,
+    Storage& storage,
     const std::string& key);

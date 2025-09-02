@@ -49,10 +49,10 @@ userver::formats::json::ValueBuilder MakeDelKeyResponse(
 
     auto success = storage.Del(key);
     if (success) {
-        response["result"] = "success";
+        response["deleted"] = true;
         response["key"] = key;
     } else {
-        response["result"] = "failure";
+        response["deleted"] = false;
         response["key"] = key;
         response["error"] = "Key not found";
     }
