@@ -10,22 +10,23 @@
 class Partition {
     mutable std::shared_mutex mutex_; 
     std::unordered_map<std::string, std::string> kv_;
+    uint64_t last_update_operation_idx_{0};
 
     public:
     // Получить значение по ключу
     std::optional<std::string> Get(const std::string& key) const;
 
     // Установить значение по ключу
-    bool Set(const std::string& key, const std::string& value);
+    bool Set(const std::string& key, const std::string& value, const uint64_t op_idx);
 
     // Удалить ключ
-    bool Del(const std::string& key);
+    bool Del(const std::string& key, const uint64_t op_idx);
 
     // Установить значение без логирования
-    void SetNoLog(const std::string& key, const std::string& value);
+    void SetNoLog(const std::string& key, const std::string& value, const uint64_t op_idx);
 
     // Удалить ключ без логирования
-    void DelNoLog(const std::string& key);
+    void DelNoLog(const std::string& key, const uint64_t op_idx);
 
     // Сохранить снапшот в файл
     void Snapshot(const std::string& filename) const;

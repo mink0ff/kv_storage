@@ -11,6 +11,7 @@ enum class AofOpType { SET, DEL };
 
 struct AofOp {
     std::chrono::system_clock::time_point ts;
+    uint64_t operation_idx{};
     std::size_t partition_id{};
     AofOpType type{};
     std::string key;

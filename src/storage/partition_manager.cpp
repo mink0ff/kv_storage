@@ -13,24 +13,24 @@ std::optional<std::string> PartitionManager::Get(size_t idx, const std::string& 
     return partitions_[idx]->Get(key);
 }
 
-bool PartitionManager::Set(size_t idx, const std::string& key, const std::string& value) {
+bool PartitionManager::Set(size_t idx, const std::string& key, const std::string& value, const uint64_t op_idx) {
     std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
-    return partitions_[idx]->Set(key, value);
+    return partitions_[idx]->Set(key, value, op_idx);
 }
 
-bool PartitionManager::Del(size_t idx, const std::string& key) {
+bool PartitionManager::Del(size_t idx, const std::string& key, const uint64_t op_idx) {
     std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
-    return partitions_[idx]->Del(key);
+    return partitions_[idx]->Del(key, op_idx);
 }
 
-void PartitionManager::SetNoLog(size_t idx, const std::string& key, const std::string& value) {
+void PartitionManager::SetNoLog(const size_t idx, const uint64_t op_idx, const std::string& key, const std::string& value) {
     std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
-    partitions_[idx]->SetNoLog(key, value);
+    partitions_[idx]->SetNoLog(key, value, op_idx);
 }
 
-void PartitionManager::DelNoLog(size_t idx, const std::string& key) {
+void PartitionManager::DelNoLog(const size_t idx, const uint64_t op_idx, const std::string& key) {
     std::lock_guard<userver::engine::SharedMutex> lock(mutex_);
-    partitions_[idx]->DelNoLog(key);
+    partitions_[idx]->DelNoLog(key, op_idx);
 }
 
 void PartitionManager::SnapshotAll(const std::string& dir) const {

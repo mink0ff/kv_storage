@@ -12,40 +12,47 @@ std::optional<std::string> Partition::Get(const std::string& key) const {
     return std::nullopt;
 }
 
-bool Partition::Set(const std::string& key, const std::string& value) {
+bool Partition::Set(const std::string& key, const std::string& value, const uint64_t op_idx) {
     std::unique_lock lock(mutex_);
+    last_update_operation_idx_ = op_idx;
     kv_[key] = value;
 
     return true;
 }
 
-bool Partition::Del(const std::string& key) {
+bool Partition::Del(const std::string& key, const uint64_t op_idx) {
     std::unique_lock lock(mutex_);
     auto it = kv_.find(key);
     if (it == kv_.end()) {
         return false;
     }
+
+    last_update_operation_idx_ = op_idx;
     kv_.erase(it);
 
     return true;
 }
 
-void Partition::SetNoLog(const std::string& key, const std::string& value) {
+void Partition::SetNoLog(const std::string& key, const std::string& value, const uint64_t op_idx) {
     std::unique_lock lock(mutex_);
+    last_update_operation_idx_ = op_idx;
     kv_[key] = value;
 }
 
-void Partition::DelNoLog(const std::string& key) {
+void Partition::DelNoLog(const std::string& key, const uint64_t op_idx) {
     std::unique_lock lock(mutex_);
+    last_update_operation_idx_ = op_idx;
     kv_.erase(key);
 }
 
 void Partition::Snapshot(const std::string& filename) const {
     std::unordered_map<std::string, std::string> copy;
+    uint64_t copy_last_op_idx{0};
 
     {
         std::shared_lock lock(mutex_);
-        copy = kv_; 
+        copy = kv_;
+        copy_last_op_idx = last_update_operation_idx_; 
     }
 
     std::ofstream out(filename, std::ios::binary);
@@ -54,7 +61,7 @@ void Partition::Snapshot(const std::string& filename) const {
         return;
     }
 
-    out << GetTimestamp() << ' ' << copy.size() << "\n";
+    out << GetTimestamp() << ' '  << copy_last_op_idx << ' ' << copy.size() << "\n";
     for (const auto& [key, value] : copy) {
         out << key << "=" << value << "\n";
     }

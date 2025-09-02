@@ -1,4 +1,5 @@
 #include "aof_logger.hpp"
+#include <iostream>
 
 AofLogger::AofLogger(const std::string& filename): 
 filename_(filename) {
@@ -61,11 +62,13 @@ std::vector<AofOp> AofLogger::ReadFile(const std::string& path) const {
         std::istringstream iss(line);
 
         std::string ts_str, op_str;
+        std::string op_idx; 
         std::size_t pid;
-        if (!(iss >> ts_str >> pid >> op_str)) continue;
+        if (!(iss >> ts_str >> op_idx >> pid >> op_str)) continue;
 
         AofOp op;
         op.ts = ParseTimestampIso8601Z(ts_str);
+        op.operation_idx = std::stoull(op_idx);
         op.partition_id = pid;
 
         if (op_str == "SET") {

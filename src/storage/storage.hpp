@@ -22,17 +22,19 @@ public:
     AofLogger& GetAofLogger();
     void ReplayAof();
     void RecoverAdvanced(const std::string& snapshots_dir);
+    uint64_t NextOperationIndex();
 
 
 private:
     size_t NumPartitions() const;
     size_t GetPartitionIndex(const std::string& key) const;
 
-    void SetNoLog(const size_t partition_idx, const std::string& key, const std::string& value);
-    void DelNoLog(const size_t partition_idx, const std::string& key);
+    void SetNoLog(const size_t partition_idx, const uint64_t op_idx, const std::string& key, const std::string& value);
+    void DelNoLog(const size_t partition_idx, const uint64_t op_idx, const std::string& key);
 
     AofLogger aof_logger_;
     std::string snapshot_dir_;
+    std::atomic_uint64_t operation_counter_{0};
 
     PartitionManager partitions_; // отдельный потокозащищенный класс Partitions 
 };

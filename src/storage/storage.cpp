@@ -9,7 +9,9 @@ Storage::Storage(int num_partitions, const std::string& aof_path,
                  const std::string& snapshot_dir)
     : aof_logger_(aof_path), 
       snapshot_dir_(snapshot_dir),
-      partitions_(num_partitions) {
+      operation_counter_(0),
+      partitions_(num_partitions)
+{
     try {
         RecoverAdvanced(snapshot_dir_);
     } catch (const std::exception& e) {
@@ -33,18 +35,22 @@ std::optional<std::string> Storage::Get(const std::string& key) const {
 
 bool Storage::Set(const std::string& key, const std::string& value) {
     auto idx = GetPartitionIndex(key);
-    bool existed = partitions_.Set(idx, key, value);
+    uint64_t op_idx = NextOperationIndex();
+
+    bool existed = partitions_.Set(idx, key, value, op_idx);
     if (existed) {
-        aof_logger_.Append(std::to_string(idx) + " SET " + key + " " + value);
+        aof_logger_.Append(std::to_string(op_idx) + ' ' + std::to_string(idx) + " SET " + key + " " + value);
     } 
     return existed; 
 }
 
 bool Storage::Del(const std::string& key) {
     auto idx = GetPartitionIndex(key);
-    bool removed = partitions_.Del(idx, key);
+    uint64_t op_idx = NextOperationIndex();
+
+    bool removed = partitions_.Del(idx, key, op_idx);
     if (removed) {
-        aof_logger_.Append(std::to_string(idx) + " DEL " + key);
+        aof_logger_.Append(std::to_string(op_idx) + ' ' + std::to_string(idx) + " DEL " + key);
     }
     return removed;
 }
@@ -58,12 +64,12 @@ AofLogger& Storage::GetAofLogger() {
     return aof_logger_;
 }
 
-void Storage::SetNoLog(const size_t partition_idx, const std::string& key, const std::string& value) {
-    partitions_.SetNoLog(partition_idx, key, value);
+void Storage::SetNoLog(const size_t partition_idx, const uint64_t op_idx, const std::string& key, const std::string& value) {
+    partitions_.SetNoLog(partition_idx, op_idx, key, value);
 }
 
-void Storage::DelNoLog(const size_t partition_idx, const std::string& key) {
-    partitions_.DelNoLog(partition_idx, key);
+void Storage::DelNoLog(const size_t partition_idx, const uint64_t op_idx, const std::string& key) {
+    partitions_.DelNoLog(partition_idx, op_idx, key);
 }
 
 void Storage::ReplayAof() {
@@ -73,10 +79,14 @@ void Storage::ReplayAof() {
     }
 }
 
+uint64_t Storage::NextOperationIndex() {
+        return operation_counter_.fetch_add(1, std::memory_order_relaxed);
+    }
+
 void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
     namespace fs = std::filesystem;
 
-    std::vector<std::chrono::system_clock::time_point> snapshot_times(NumPartitions());
+    std::vector<uint64_t> snapshot_last_op_idxs(NumPartitions());
 
     for (size_t i = 0; i < NumPartitions(); i++) {
         std::string filename = snapshots_dir + "/partition_" + std::to_string(i) + ".snap";
@@ -96,34 +106,41 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
 
         std::istringstream iss(header_line);
         std::string ts_str;
+        std::string partition_last_op_idx;
         size_t count;
-        if (!(iss >> ts_str >> count)) {
+        if (!(iss >> ts_str >> partition_last_op_idx >> count)) {
             throw std::runtime_error("Invalid snapshot header: " + filename);
         }
 
-        snapshot_times[i] = ParseTimestampIso8601Z(ts_str);
+        snapshot_last_op_idxs[i] = std::stoull(partition_last_op_idx);
 
-        partitions_.ApplyOp(i, AofOp{}); // лишнее? но если Recover внутри PartitionManager, можно убрать
-        partitions_.RecoverAll(snapshots_dir); // заменяем прямой вызов
+        partitions_.ApplyOp(i, AofOp{}); 
+        partitions_.RecoverAll(snapshots_dir);
     }
 
-    auto min_snapshot_ts = *(std::min_element(snapshot_times.begin(), snapshot_times.end()));
-    auto max_snapshot_ts = *(std::max_element(snapshot_times.begin(), snapshot_times.end()));
+    auto min_snapshot_op_idx = *(std::min_element(snapshot_last_op_idxs.begin(), snapshot_last_op_idxs.end()));
+    auto max_snapshot_op_idx = *(std::max_element(snapshot_last_op_idxs.begin(), snapshot_last_op_idxs.end()));
 
     auto ops = aof_logger_.ReadAll();
 
+    if (ops.empty()) {
+        std::cout << "No AOF operations to replay.\n";
+        return;
+    }
+
     for (const auto& op : ops) {
-        if (op.ts < min_snapshot_ts) {
+        if (op.operation_idx < min_snapshot_op_idx) {
             continue; 
         }
-        if (op.ts <= max_snapshot_ts) {
-            if (op.ts > snapshot_times[op.partition_id]) {
+        if (op.operation_idx <= max_snapshot_op_idx) {
+            if (op.operation_idx > snapshot_last_op_idxs[op.partition_id]) {
                 partitions_.ApplyOp(op.partition_id, op);
             }
         } else {
             partitions_.ApplyOp(op.partition_id, op);
         }
     }
+    operation_counter_.store(ops.back().operation_idx + 1, std::memory_order_relaxed);
 
     std::cout << "RecoverAdvanced finished. Applied AOF ops on top of snapshots.\n";
 }
