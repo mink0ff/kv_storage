@@ -13,8 +13,8 @@ components_manager:
         storage:
             fs-task-processor: fs-task-processor
             partitions: 16
-            aof-path: ../logs/appendonly.aof
-            snapshot-dir: ../snapshots/main_snapshots                   # Configuring components that were registered via component_list
+            aof-path: ../logs/test_appendonly.aof
+            snapshot-dir: ../snapshots/test_snapshots                   # Configuring components that were registered via component_list
         server:
             listener:                 # configuring the main listening socket...
                 port: $server-port            # ...to listen on this port and...

@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
 // #include <atomic>
 // #include <chrono>
 // #include <sstream>
+// #include <unordered_set>
 
 // #include "storage/storage.hpp"
 
@@ -61,8 +62,8 @@ int main(int argc, char* argv[]) {
 //     const int ops_per_thread = 1000;
 //     const int num_keys = 5000;
 
-//     const std::string aof_path = "logs/appendonly.aof";
-//     const std::string snapshot_dir = "snapshots/after_aof_replay";
+//     const std::string aof_path = "../logs/appendonly.aof";
+//     const std::string snapshot_dir = "../snapshots/snapshots_test";
 
 //     auto storage = std::make_shared<Storage>(partitions, aof_path, snapshot_dir);
 
