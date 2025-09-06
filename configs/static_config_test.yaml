@@ -15,6 +15,7 @@ components_manager:
             partitions: 16
             aof-path: ../tests/test_data/aof/appendonly.aof
             snapshot-dir: ../tests/test_data/snapshots               # Configuring components that were registered via component_list
+            snapshot-interval: 60s
         server:
             listener:                 # configuring the main listening socket...
                 port: $server-port            # ...to listen on this port and...

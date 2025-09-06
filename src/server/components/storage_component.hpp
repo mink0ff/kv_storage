@@ -5,6 +5,7 @@
 #include <userver/components/loggable_component_base.hpp>
 #include <userver/yaml_config/schema.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
+#include <userver/utils/periodic_task.hpp>
 
 #include "storage/storage.hpp"
 
@@ -17,12 +18,14 @@ public:
     StorageComponent(const userver::components::ComponentConfig& config,
                      const userver::components::ComponentContext& context);
 
+    ~StorageComponent() override;
     std::shared_ptr<Storage> GetStorage();
 
     static userver::yaml_config::Schema GetStaticConfigSchema();
 
 private:
     std::shared_ptr<Storage> storage_;
+    userver::utils::PeriodicTask periodic_snapshot_;
 };
 
 }  // namespace myservice::components
