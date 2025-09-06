@@ -6,8 +6,8 @@ pytest_plugins = ["pytest_userver.plugins.core"]
 @pytest.fixture(scope="session")
 def service_env():
     """Очистка/создание тестовых директорий перед запуском сервиса"""
-    snapshots = pathlib.Path("snapshots/test_snapshots")
-    aof = pathlib.Path("logs/test_appendonly.aof")
+    snapshots = pathlib.Path("./test_data/snapshots")
+    aof = pathlib.Path("./test_data/appendonly.aof")
 
     if snapshots.exists():
         for f in snapshots.glob("*"):

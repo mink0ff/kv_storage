@@ -42,3 +42,4 @@ Thumbs.db
 # Snapshots files
 /snapshots/
 /logs/
+/tests/test_data/
