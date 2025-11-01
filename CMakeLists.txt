@@ -24,6 +24,17 @@ add_library(
     ${PROJECT_NAME}_objs OBJECT
     src/greeting.cpp #
     src/hello.cpp #
+    src/storage/storage.cpp #
+    src/storage/partition.cpp #
+    src/persistence/aof_logger.cpp #
+    src/persistence/snapshot.cpp #
+    src/utils/utils.cpp #
+    src/server/components/storage_component.cpp #
+    src/server/handlers/get.cpp #
+    src/storage/partition_manager.cpp #
+    src/server/handlers_make_response/handlers_make_response.cpp #
+    src/server/handlers/set.cpp #
+    src/server/handlers/del.cpp #
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs
@@ -32,7 +43,8 @@ target_link_libraries(
 
 
 # The Service
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp
+)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
 
 # Unit Tests

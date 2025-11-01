@@ -1,7 +1,7 @@
 #include "storage/storage.hpp"
 
-void Storage::Snapshot() {
-    for (auto& shard : shards_) {
-        shard->Snapshot("snapshot_" + std::to_string(shard_id) + ".rdb");
-    }
-}
+// void Storage::Snapshot() {
+//     for (auto& partition : partitions_) {
+//         // partition->Snapshot("snapshot_" + std::to_string(partition_id) + ".rdb");
+//     }
+// }

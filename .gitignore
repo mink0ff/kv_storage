@@ -38,3 +38,8 @@ compile_commands.json
 # OS-specific
 .DS_Store
 Thumbs.db
+
+# Snapshots files
+/snapshots/
+/logs/
+/tests/test_data/
