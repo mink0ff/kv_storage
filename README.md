@@ -1,37 +1,149 @@
-# kv_store
+# kv_store — асинхронное key-value хранилище на C++ и userver
 
-Template of a C++ service that uses [userver framework](https://github.com/userver-framework/userver).
+**kv_store** — это асинхронное key-value хранилище, разработанное на фреймворке **userver**.  
+Проект реализует хранение данных в памяти с поддержкой персистентности через **AOF (Append Only File)** и **снапшоты (snapshots)**.  
+Хранилище поддерживает операции `GET`, `SET`, `DEL` и восстанавливает состояние при запуске.
 
+---
 
-## Download and Build
+## Цели проекта
 
-To create your own userver-based service follow the following steps:
+- Изучение принципов построения асинхронных микросервисов на C++.  
+- Реализация простого персистентного key-value хранилища, аналогичного Redis.  
+- Демонстрация компонентной архитектуры **userver**.  
+- Практика написания интеграционных тестов с использованием **pytest_userver**.  
 
-1. Press the "Use this template button" at the top right of this GitHub page
-2. Clone the service `git clone your-service-repo && cd your-service-repo && git submodule update --init`
-3. Give a proper name to your service and replace all the occurrences of "kv_store" string with that name
-4. Feel free to tweak, adjust or fully rewrite the source code of your service.
+---
 
+## Архитектура проекта
 
-## Makefile
+### Основные компоненты
 
-`PRESET` is either `debug`, `release`, or if you've added custom presets in `CMakeUserPresets.json`, it
-can also be `debug-custom`, `release-custom`.
+- **Storage** — потокобезопасное in-memory хранилище (`std::unordered_map`).  
+- **AofLogger** — отвечает за запись всех операций (`SET`, `DEL`) в журнал **appendonly.aof** в формате JSON.  
+- **SnapshotManager** — создает периодические снимки состояния (snapshots) для ускорения восстановления.  
+- **StorageComponent** — объединяет все подсистемы: хранение, логирование и снапшоты.  
+- **Handlers** — REST API-ручки для взаимодействия с пользователем через HTTP.  
+- **Userver Components** — управляют конфигурацией и жизненным циклом приложения.  
 
-* `make cmake-PRESET` - run cmake configure, update cmake options and source file lists
-* `make build-PRESET` - build the service
-* `make test-PRESET` - build the service and run all tests
-* `make start-PRESET` - build the service, start it in testsuite environment and leave it running
-* `make install-PRESET` - build the service and install it in directory set in environment `PREFIX`
-* `make` or `make all` - build and run all tests in `debug` and `release` modes
-* `make format` - reformat all C++ and Python sources
-* `make dist-clean` - clean build files and cmake cache
-* `make docker-COMMAND` - run `make COMMAND` in docker environment
-* `make docker-clean-data` - stop docker containers
+---
 
+## Механизмы работы
 
-## License
+### In-memory Storage
 
-The original template is distributed under the [Apache-2.0 License](https://github.com/userver-framework/userver/blob/develop/LICENSE)
-and [CLA](https://github.com/userver-framework/userver/blob/develop/CONTRIBUTING.md). Services based on the template may change
-the license and CLA.# kv_storage
+Хранилище реализовано как потокобезопасный `unordered_map`.  
+Поддерживаемые операции:
+- `Set(key, value)`
+- `Get(key)`
+- `Delete(key)`
+
+Доступ к данным синхронизируется с помощью `userver::engine::Mutex`.
+
+---
+
+### AOF (Append Only File)
+
+Все операции изменения состояния (`SET`, `DEL`) записываются в файл **appendonly.aof**.  
+Файл хранит данные в **JSON-формате**, например:
+
+```json
+{
+  "ts": "2025-11-10T12:30:15Z",
+  "op_idx": 42,
+  "partition_id": 0,
+  "type": "SET",
+  "key": "foo",
+  "value": "bar"
+}
+```
+
+Каждая операция добавляется в конец файла, **без его перезаписи**.  
+При старте сервиса AOF читается, и все операции применяются последовательно для восстановления состояния.
+
+---
+
+### Snapshots
+
+Снапшоты создаются через заданный интервал времени и представляют собой полную копию хранилища.  
+Файлы снапшотов записываются в формате JSON и хранятся по пути:
+
+```
+snapshots/snapshot_2025-11-10T12-00-00.json
+```
+
+Процесс создания снапшота выполняется **асинхронно** в отдельном task-процессоре,  
+чтобы не блокировать основные операции сервиса.
+
+---
+
+### Восстановление при запуске
+
+1. Загружается последний снапшот, если он существует.  
+2. Из AOF применяются операции, произошедшие после создания снапшота.  
+3. В результате хранилище полностью восстанавливает актуальное состояние.
+
+---
+
+## REST API
+
+| Метод | Путь | Описание |
+|--------|------|-----------|
+| `GET` | `/kv/get?key=foo` | Получить значение по ключу |
+| `POST` | `/kv/set` | Установить значение (в теле JSON) |
+| `DELETE` | `/kv/del?key=foo` | Удалить ключ |
+
+### Примеры запросов
+
+#### Установка значения
+```bash
+curl -X POST "http://localhost:8080/kv/set"      -H "Content-Type: application/json"      -d '{"key": "foo", "value": "bar"}'
+```
+
+#### Получение значения
+```bash
+curl "http://localhost:8080/kv/get?key=foo"
+```
+
+#### Удаление ключа
+```bash
+curl -X DELETE "http://localhost:8080/kv/del?key=foo"
+```
+
+---
+
+## Тестирование
+
+Тесты реализованы с использованием **pytest_userver**.  
+Проверяются корректность работы API, целостность данных, восстановление состояния и изоляция тестовых данных.
+
+Перед запуском тестов создаются отдельные директории:
+```
+tests/test_data/snapshots/
+tests/test_data/appendonly.aof
+```
+
+Эти файлы очищаются перед каждым запуском тестов с помощью фикстуры `service_env`,  
+чтобы тестовые данные не влияли на основное хранилище.
+
+---
+
+## Используемые технологии
+
+- **C++20** — язык реализации  
+- **userver** — асинхронный фреймворк для микросервисов  
+- **pytest_userver** — интеграционное тестирование HTTP API  
+- **CMake / Ninja** — система сборки  
+- **YAML / JSON** — хранение конфигурации и данных  
+- **ccache** — ускорение сборки  
+
+---
+
+## Ключевые особенности реализации
+
+- Асинхронная архитектура с безопасной синхронизацией (`userver::engine::Mutex`)  
+- Полная персистентность данных (**AOF + Snapshots**)  
+- Восстановление состояния при перезапуске  
+- Разделение логики на независимые компоненты  
+- Поддержка автоматических периодических снапшотов  
+- Изоляция тестовых данных для безопасного тестирования  
