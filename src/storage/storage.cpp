@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <userver/logging/log.hpp>
+#include "utils/utils.hpp"
+
 
 Storage::Storage(int num_partitions, const std::string& aof_path,
                  const std::string& snapshot_dir)
@@ -46,8 +49,17 @@ bool Storage::Set(const std::string& key, const std::string& value) {
     uint64_t op_idx = NextOperationIndex();
 
     bool existed = partitions_.Set(idx, key, value, op_idx);
+    
     if (existed) {
-        aof_logger_.Append(std::to_string(op_idx) + ' ' + std::to_string(idx) + " SET " + key + " " + value);
+        AofOp op {
+        .ts = std::chrono::system_clock::now(),
+        .operation_idx = op_idx,
+        .partition_id = idx,
+        .type = AofOpType::SET,
+        .key = key,
+        .value = value
+    };
+        aof_logger_.Append(op);
     } 
     return existed; 
 }
@@ -58,14 +70,21 @@ bool Storage::Del(const std::string& key) {
 
     bool removed = partitions_.Del(idx, key, op_idx);
     if (removed) {
-        aof_logger_.Append(std::to_string(op_idx) + ' ' + std::to_string(idx) + " DEL " + key);
+        AofOp op {
+        .ts = std::chrono::system_clock::now(),
+        .operation_idx = op_idx,
+        .partition_id = idx,
+        .type = AofOpType::DEL,
+        .key = key
+        };
+        aof_logger_.Append(op);
     }
     return removed;
 }
 
 void Storage::Snapshot() const {
     partitions_.SnapshotAll(snapshot_dir_);
-    std::cout << "Snapshot saved to " << snapshot_dir_ << std::endl;
+    LOG_INFO() << "Snapshot saved to " << snapshot_dir_;
 }
 
 AofLogger& Storage::GetAofLogger() {
@@ -132,7 +151,7 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
     auto ops = aof_logger_.ReadAll();
 
     if (ops.empty()) {
-        std::cout << "No AOF operations to replay.\n";
+        LOG_WARNING() << "No AOF operations to replay.\n";
         return;
     }
 
@@ -150,5 +169,5 @@ void Storage::RecoverAdvanced(const std::string& snapshots_dir) {
     }
     operation_counter_.store(ops.back().operation_idx + 1, std::memory_order_relaxed);
 
-    std::cout << "RecoverAdvanced finished. Applied AOF ops on top of snapshots.\n";
+    LOG_INFO() << "RecoverAdvanced finished. Applied AOF ops on top of snapshots.";
 }

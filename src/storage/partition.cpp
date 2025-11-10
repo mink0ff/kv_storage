@@ -3,6 +3,9 @@
 #include <iostream>
 #include <mutex>
 
+#include "utils/utils.hpp"
+
+
 std::optional<std::string> Partition::Get(const std::string& key) const {
     std::shared_lock lock(mutex_);
     auto it = kv_.find(key);
