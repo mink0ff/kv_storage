@@ -22,12 +22,9 @@ include_directories(src)
 
 add_library(
     ${PROJECT_NAME}_objs OBJECT
-    src/greeting.cpp #
-    src/hello.cpp #
     src/storage/storage.cpp #
     src/storage/partition.cpp #
     src/persistence/aof_logger.cpp #
-    src/persistence/snapshot.cpp #
     src/utils/utils.cpp #
     src/server/components/storage_component.cpp #
     src/server/handlers/get.cpp #
@@ -40,7 +37,6 @@ target_link_libraries(
     ${PROJECT_NAME}_objs
     PUBLIC userver::core #
 )
-
 
 # The Service
 add_executable(${PROJECT_NAME} src/main.cpp

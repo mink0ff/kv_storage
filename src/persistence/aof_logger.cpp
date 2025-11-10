@@ -1,5 +1,13 @@
 #include "aof_logger.hpp"
 #include <iostream>
+#include "utils/utils.hpp"
+#include <userver/formats/json/value_builder.hpp>
+#include <userver/formats/json/serialize.hpp>
+#include <userver/logging/log.hpp>
+
+
+
+
 
 AofLogger::AofLogger(const std::string& filename): 
 filename_(filename) {
@@ -17,9 +25,19 @@ AofLogger::~AofLogger() {
     }
 }
 
-void AofLogger::Append(const std::string& command) {
+void AofLogger::Append(const AofOp& op) {
     std::lock_guard<userver::engine::Mutex> lock(mutex_);
-    file_ << GetTimestamp() + ' ' + command << "\n";
+
+    userver::formats::json::ValueBuilder json;
+    json["ts"] = TimePointToIsoString(op.ts);
+    json["operation_idx"] = op.operation_idx;
+    json["partition_id"] = op.partition_id;
+    json["type"] = (op.type == AofOpType::SET) ? "SET" : "DEL";
+    json["key"] = op.key;
+    if (op.type == AofOpType::SET) {
+        json["value"] = op.value;
+    }
+    file_ << userver::formats::json::ToString(json.ExtractValue()) << "\n";
     file_.flush();  
 }
 
@@ -59,33 +77,57 @@ std::vector<AofOp> AofLogger::ReadFile(const std::string& path) const {
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;
-        std::istringstream iss(line);
+    //     std::istringstream iss(line);
 
-        std::string ts_str, op_str;
-        std::string op_idx; 
-        std::size_t pid;
-        if (!(iss >> ts_str >> op_idx >> pid >> op_str)) continue;
+    //     std::string ts_str, op_str;
+    //     std::string op_idx; 
+    //     std::size_t pid;
+    //     if (!(iss >> ts_str >> op_idx >> pid >> op_str)) continue;
 
-        AofOp op;
-        op.ts = ParseTimestampIso8601Z(ts_str);
-        op.operation_idx = std::stoull(op_idx);
-        op.partition_id = pid;
+    //     AofOp op;
+    //     op.ts = ParseTimestampIso8601Z(ts_str);
+    //     op.operation_idx = std::stoull(op_idx);
+    //     op.partition_id = pid;
 
-        if (op_str == "SET") {
-            std::string key, value;
-            if (!(iss >> key >> value)) continue;
-            op.type = AofOpType::SET;
-            op.key = std::move(key);
-            op.value = std::move(value);
-        } else if (op_str == "DEL") {
-            std::string key;
-            if (!(iss >> key)) continue;
-            op.type = AofOpType::DEL;
-            op.key = std::move(key);
-        } else {
-            continue;
+    //     if (op_str == "SET") {
+    //         std::string key, value;
+    //         if (!(iss >> key >> value)) continue;
+    //         op.type = AofOpType::SET;
+    //         op.key = std::move(key);
+    //         op.value = std::move(value);
+    //     } else if (op_str == "DEL") {
+    //         std::string key;
+    //         if (!(iss >> key)) continue;
+    //         op.type = AofOpType::DEL;
+    //         op.key = std::move(key);
+    //     } else {
+    //         continue;
+    //     }
+    //     ops.emplace_back(std::move(op));
+    // }
+        try {
+            auto json = userver::formats::json::FromString(line);
+            AofOp op;
+
+            op.ts = ParseTimestampIso8601Z(json["ts"].As<std::string>());
+            op.operation_idx = json["operation_idx"].As<std::uint64_t>();
+            op.partition_id = json["partition_id"].As<std::size_t>();
+            const auto op_str = json["type"].As<std::string>();
+            op.key = json["key"].As<std::string>();
+
+            if (op_str == "SET") {
+                op.type = AofOpType::SET;
+                op.value = json["value"].As<std::string>();
+            } else if (op_str == "DEL") {
+                op.type = AofOpType::DEL;
+            } else {
+                continue;
+            }
+
+            ops.push_back(std::move(op));
+        } catch (const std::exception& e) {
+            LOG_WARNING() << "Failed to parse AOF line: " << e.what();
         }
-        ops.emplace_back(std::move(op));
     }
 
     return ops;

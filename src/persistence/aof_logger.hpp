@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "utils/utils.hpp"
-
 
 enum class AofOpType { SET, DEL };
 
@@ -23,7 +21,7 @@ public:
     explicit AofLogger(const std::string& filename);
     ~AofLogger();
 
-    void Append(const std::string& command); 
+    void Append(const AofOp& op); 
     void Flush();
 
     void Clear();

@@ -4,7 +4,6 @@
 #include <userver/engine/shared_mutex.hpp>
 #include <optional>
 
-#include "utils/utils.hpp"
 #include "persistence/aof_logger.hpp"
 
 class Partition {
